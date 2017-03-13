@@ -16,6 +16,7 @@
 
 buildscript {
     repositories {
+        mavenCentral()
         jcenter()
     }
     dependencies {
@@ -26,6 +27,6 @@ buildscript {
 
 allprojects {
     repositories {
-        jcenter()
+        mavenCentral()
     }
 }

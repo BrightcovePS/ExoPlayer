@@ -113,7 +113,7 @@ public abstract class SampleSourceTrackRenderer extends TrackRenderer {
   }
 
   @Override
-  protected void seekTo(long positionUs) throws ExoPlaybackException {
+  protected final void seekTo(long positionUs) throws ExoPlaybackException {
     positionUs = shiftInputPosition(positionUs);
     enabledSource.seekToUs(positionUs);
     checkForDiscontinuity(positionUs);

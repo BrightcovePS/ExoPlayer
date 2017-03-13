@@ -56,7 +56,6 @@ public class ChunkExtractorWrapper implements ExtractorOutput, TrackOutput {
 
   // Accessed only on the loader thread.
   private boolean seenTrack;
-  private int seenTrackId;
 
   /**
    * @param extractor The extractor to wrap.
@@ -99,9 +98,8 @@ public class ChunkExtractorWrapper implements ExtractorOutput, TrackOutput {
 
   @Override
   public TrackOutput track(int id) {
-    Assertions.checkState(!seenTrack || id == seenTrackId);
+    Assertions.checkState(!seenTrack);
     seenTrack = true;
-    seenTrackId = id;
     return this;
   }
 

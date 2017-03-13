@@ -23,13 +23,12 @@ import com.google.android.exoplayer.drm.DrmInitData;
 public interface ExtractorOutput {
 
   /**
-   * Called by the {@link Extractor} to get the {@link TrackOutput} for a specific track.
+   * Invoked when the {@link Extractor} identifies the existence of a track in the stream.
    * <p>
-   * The same {@link TrackOutput} is returned if multiple calls are made with the same
-   * {@code trackId}.
+   * Returns a {@link TrackOutput} that will receive track level data belonging to the track.
    *
    * @param trackId A track identifier.
-   * @return The {@link TrackOutput} for the given track identifier.
+   * @return The {@link TrackOutput} that should receive track level data belonging to the track.
    */
   TrackOutput track(int trackId);
 

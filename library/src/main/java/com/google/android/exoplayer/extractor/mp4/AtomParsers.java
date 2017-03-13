@@ -15,7 +15,6 @@
  */
 package com.google.android.exoplayer.extractor.mp4;
 
-import android.util.Log;
 import android.util.Pair;
 import com.google.android.exoplayer.C;
 import com.google.android.exoplayer.MediaFormat;
@@ -38,10 +37,6 @@ import java.util.List;
  * Utility methods for parsing MP4 format atom payloads according to ISO 14496-12.
  */
 /* package */ final class AtomParsers {
-
-  private static final String TAG = "AtomParsers";
-
-  private static final int TYPE_cenc = Util.getIntegerCodeForString("cenc");
 
   /**
    * Parses a trak atom (defined in 14496-12).
@@ -246,16 +241,11 @@ import java.util.List;
         remainingTimestampOffsetChanges--;
       }
 
-      // If the stbl's child boxes are not consistent the container is malformed, but the stream may
-      // still be playable.
-      if (remainingSynchronizationSamples != 0 || remainingSamplesAtTimestampDelta != 0
-          || remainingSamplesInChunk != 0 || remainingTimestampDeltaChanges != 0) {
-        Log.w(TAG, "Inconsistent stbl box for track " + track.id
-            + ": remainingSynchronizationSamples " + remainingSynchronizationSamples
-            + ", remainingSamplesAtTimestampDelta " + remainingSamplesAtTimestampDelta
-            + ", remainingSamplesInChunk " + remainingSamplesInChunk
-            + ", remainingTimestampDeltaChanges " + remainingTimestampDeltaChanges);
-      }
+      // Check all the expected samples have been seen.
+      Assertions.checkArgument(remainingSynchronizationSamples == 0);
+      Assertions.checkArgument(remainingSamplesAtTimestampDelta == 0);
+      Assertions.checkArgument(remainingSamplesInChunk == 0);
+      Assertions.checkArgument(remainingTimestampDeltaChanges == 0);
     } else {
       long[] chunkOffsetsBytes = new long[chunkIterator.length];
       int[] chunkSampleCounts = new int[chunkIterator.length];
@@ -1024,7 +1014,7 @@ import java.util.List;
 
   /**
    * Parses encryption data from an audio/video sample entry, populating {@code out} and returning
-   * the unencrypted atom type, or 0 if no common encryption sinf atom was present.
+   * the unencrypted atom type, or 0 if no sinf atom was present.
    */
   private static int parseSampleEntryEncryptionData(ParsableByteArray parent, int position,
       int size, StsdData out, int entryIndex) {
@@ -1037,10 +1027,10 @@ import java.util.List;
       if (childAtomType == Atom.TYPE_sinf) {
         Pair<Integer, TrackEncryptionBox> result = parseSinfFromParent(parent, childPosition,
             childAtomSize);
-        if (result != null) {
-          out.trackEncryptionBoxes[entryIndex] = result.second;
-          return result.first;
-        }
+        Integer dataFormat = result.first;
+        Assertions.checkArgument(dataFormat != null, "frma atom is mandatory");
+        out.trackEncryptionBoxes[entryIndex] = result.second;
+        return dataFormat;
       }
       childPosition += childAtomSize;
     }
@@ -1052,7 +1042,6 @@ import java.util.List;
       int position, int size) {
     int childPosition = position + Atom.HEADER_SIZE;
 
-    boolean isCencScheme = false;
     TrackEncryptionBox trackEncryptionBox = null;
     Integer dataFormat = null;
     while (childPosition - position < size) {
@@ -1063,20 +1052,15 @@ import java.util.List;
         dataFormat = parent.readInt();
       } else if (childAtomType == Atom.TYPE_schm) {
         parent.skipBytes(4);
-        isCencScheme = parent.readInt() == TYPE_cenc;
+        parent.readInt(); // schemeType. Expect cenc
+        parent.readInt(); // schemeVersion. Expect 0x00010000
       } else if (childAtomType == Atom.TYPE_schi) {
         trackEncryptionBox = parseSchiFromParent(parent, childPosition, childAtomSize);
       }
       childPosition += childAtomSize;
     }
 
-    if (isCencScheme) {
-      Assertions.checkArgument(dataFormat != null, "frma atom is mandatory");
-      Assertions.checkArgument(trackEncryptionBox != null, "schi->tenc atom is mandatory");
-      return Pair.create(dataFormat, trackEncryptionBox);
-    } else {
-      return null;
-    }
+    return Pair.create(dataFormat, trackEncryptionBox);
   }
 
   private static TrackEncryptionBox parseSchiFromParent(ParsableByteArray parent, int position,
