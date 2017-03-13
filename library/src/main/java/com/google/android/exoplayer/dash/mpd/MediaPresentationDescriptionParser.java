@@ -232,12 +232,17 @@ public class MediaPresentationDescriptionParser extends DefaultHandler
     int audioChannels = -1;
     int audioSamplingRate = parseInt(xpp, "audioSamplingRate", -1);
     String language = xpp.getAttributeValue(null, "lang");
+    Role role = null;
 
     ContentProtectionsBuilder contentProtectionsBuilder = new ContentProtectionsBuilder();
     List<Representation> representations = new ArrayList<>();
     boolean seenFirstBaseUrl = false;
     do {
       xpp.next();
+      if (ParserUtil.isStartTag(xpp, "Role")) {
+        role = parseRoleTag(xpp);
+      }
+
       if (ParserUtil.isStartTag(xpp, "BaseURL")) {
         if (!seenFirstBaseUrl) {
           baseUrl = parseBaseUrl(xpp, baseUrl);
@@ -271,12 +276,17 @@ public class MediaPresentationDescriptionParser extends DefaultHandler
       }
     } while (!ParserUtil.isEndTag(xpp, "AdaptationSet"));
 
-    return buildAdaptationSet(id, contentType, representations, contentProtectionsBuilder.build());
+    return buildAdaptationSet(id, contentType, representations, contentProtectionsBuilder.build(), role);
   }
 
   protected AdaptationSet buildAdaptationSet(int id, int contentType,
       List<Representation> representations, List<ContentProtection> contentProtections) {
-    return new AdaptationSet(id, contentType, representations, contentProtections);
+    return buildAdaptationSet(id, contentType, representations, contentProtections, null);
+  }
+
+  protected AdaptationSet buildAdaptationSet(int id, int contentType,
+                                             List<Representation> representations, List<ContentProtection> contentProtections, Role role) {
+    return new AdaptationSet(id, contentType, representations, contentProtections, role);
   }
 
   protected int parseContentType(XmlPullParser xpp) {
@@ -356,6 +366,22 @@ public class MediaPresentationDescriptionParser extends DefaultHandler
     // pass
   }
 
+  //Parsing Role Tag
+  protected Role parseRoleTag(XmlPullParser xpp) throws XmlPullParserException, IOException {
+    String schemeIdUri = parseString(xpp, "schemeIdUri", null);
+    String value = parseString(xpp, "value", null);
+    Role role = null;
+
+    do {
+      xpp.next();
+    } while (!ParserUtil.isEndTag(xpp, "Role"));
+
+    if (schemeIdUri != null || value != null) {
+      role = new Role(schemeIdUri, value);
+    }
+    return role;
+  }
+
   // Representation parsing.
 
   protected Representation parseRepresentation(XmlPullParser xpp, String baseUrl,
@@ -400,15 +426,15 @@ public class MediaPresentationDescriptionParser extends DefaultHandler
       }
     } while (!ParserUtil.isEndTag(xpp, "Representation"));
 
-    Format format = buildFormat(id, mimeType, width, height, frameRate, audioChannels,
+    Format format = buildFormat(id, baseUrl, mimeType, width, height, frameRate, audioChannels,
         audioSamplingRate, bandwidth, language, codecs);
     return buildRepresentation(contentId, -1, format,
         segmentBase != null ? segmentBase : new SingleSegmentBase(), baseUrl);
   }
 
-  protected Format buildFormat(String id, String mimeType, int width, int height, float frameRate,
+  protected Format buildFormat(String id, String baseUrl, String mimeType, int width, int height, float frameRate,
       int audioChannels, int audioSamplingRate, int bandwidth, String language, String codecs) {
-    return new Format(id, mimeType, width, height, frameRate, audioChannels, audioSamplingRate,
+    return new Format(id, baseUrl, mimeType, width, height, frameRate, audioChannels, audioSamplingRate,
         bandwidth, language, codecs);
   }
 

@@ -41,6 +41,11 @@ public class Format {
   public final String id;
 
   /**
+   * The rendition url.
+   */
+  public final String renditionUrl;
+
+  /**
    * The mime type of the format.
    */
   public final String mimeType;
@@ -118,7 +123,7 @@ public class Format {
    */
   public Format(String id, String mimeType, int width, int height, float frameRate, int numChannels,
       int audioSamplingRate, int bitrate, String language) {
-    this(id, mimeType, width, height, frameRate, numChannels, audioSamplingRate, bitrate, language,
+    this(id, null, mimeType, width, height, frameRate, numChannels, audioSamplingRate, bitrate, language,
         null);
   }
 
@@ -135,9 +140,10 @@ public class Format {
    * @param language The language of the format.
    * @param codecs The codecs used to decode the format.
    */
-  public Format(String id, String mimeType, int width, int height, float frameRate,
+  public Format(String id, String renditionUrl, String mimeType, int width, int height, float frameRate,
       int audioChannels, int audioSamplingRate, int bitrate, String language, String codecs) {
     this.id = Assertions.checkNotNull(id);
+    this.renditionUrl = renditionUrl;
     this.mimeType = mimeType;
     this.width = width;
     this.height = height;
