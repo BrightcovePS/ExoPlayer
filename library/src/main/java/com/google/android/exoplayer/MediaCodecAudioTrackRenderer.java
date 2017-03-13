@@ -15,6 +15,7 @@
  */
 package com.google.android.exoplayer;
 
+
 import android.annotation.TargetApi;
 import android.media.AudioManager;
 import android.media.MediaCodec;
@@ -27,6 +28,11 @@ import com.google.android.exoplayer.audio.AudioCapabilities;
 import com.google.android.exoplayer.audio.AudioTrack;
 import com.google.android.exoplayer.drm.DrmSessionManager;
 import com.google.android.exoplayer.util.MimeTypes;
+// AMZN_CHANGE_BEGIN
+import com.google.android.exoplayer.util.AmazonQuirks;
+import com.google.android.exoplayer.util.Logger;
+// AMZN_CHANGE_END
+import android.util.Log;
 import java.nio.ByteBuffer;
 
 /**
@@ -34,6 +40,7 @@ import java.nio.ByteBuffer;
  */
 @TargetApi(16)
 public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer implements MediaClock {
+  private static final String TAG = MediaCodecAudioTrackRenderer.class.getSimpleName(); // AMZN_CHANGE_ONELINE
 
   /**
    * Interface definition for a callback to be notified of {@link MediaCodecAudioTrackRenderer}
@@ -94,9 +101,11 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer implem
   private long currentPositionUs;
   private boolean allowPositionDiscontinuity;
 
+
   private boolean audioTrackHasData;
   private long lastFeedElapsedRealtimeMs;
 
+  private final Logger log = new Logger(Logger.Module.Audio, TAG); // AMZN_CHANGE_ONELINE
   /**
    * @param source The upstream source from which the renderer obtains samples.
    * @param mediaCodecSelector A decoder selector.
@@ -219,7 +228,7 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer implem
   @Override
   protected DecoderInfo getDecoderInfo(MediaCodecSelector mediaCodecSelector, String mimeType,
       boolean requiresSecureDecoder) throws DecoderQueryException {
-    if (allowPassthrough(mimeType)) {
+    if (allowPassthrough(mimeType) && AmazonQuirks.useDefaultPassthroughDecoder()) { // AMZN_CHAGE_ONELINE
       DecoderInfo passthroughDecoderInfo = mediaCodecSelector.getPassthroughDecoderInfo();
       if (passthroughDecoderInfo != null) {
         passthroughEnabled = true;
@@ -245,6 +254,7 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer implem
   @Override
   protected void configureCodec(MediaCodec codec, boolean codecIsAdaptive,
       android.media.MediaFormat format, android.media.MediaCrypto crypto) {
+    log.setTAG (codecName + "-" + TAG); // AMZN_CHANGE_ONELINE
     String mimeType = format.getString(android.media.MediaFormat.KEY_MIME);
     if (passthroughEnabled) {
       // Override the MIME type used to configure the codec if we are using a passthrough decoder.
@@ -274,11 +284,25 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer implem
 
   @Override
   protected void onOutputFormatChanged(MediaCodec codec, android.media.MediaFormat outputFormat) {
+    // AMZN_CHANGE_BEGIN
+    log.i("onOutputFormatChanged: outputFormat:" + outputFormat
+         + ", codec:" + codec.toString());
+
+    // Some platform dolby decoders may output mime types depending on the
+    // audio capabilities of the connected device and Dolby settings. So, as a general rule, if
+    // platform decoder is being used instead of OMX.google.raw.decoder, need to
+    // configure audio track based on the output mime type returned by the media codec.
     boolean passthrough = passthroughMediaFormat != null;
-    String mimeType = passthrough
-        ? passthroughMediaFormat.getString(android.media.MediaFormat.KEY_MIME)
-        : MimeTypes.AUDIO_RAW;
     android.media.MediaFormat format = passthrough ? passthroughMediaFormat : outputFormat;
+    String mimeType;
+    if (AmazonQuirks.isAmazonDevice()) {
+      mimeType = format.getString(android.media.MediaFormat.KEY_MIME);
+    } else {
+      mimeType = passthrough ? passthroughMediaFormat.getString(android.media.MediaFormat.KEY_MIME)
+              : MimeTypes.AUDIO_RAW;
+    }
+
+    // AMZN_CHANGE_END
     int channelCount = format.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT);
     int sampleRate = format.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE);
     audioTrack.configure(mimeType, channelCount, sampleRate, pcmEncoding);
@@ -314,7 +338,15 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer implem
 
   @Override
   protected boolean isEnded() {
-    return super.isEnded() && !audioTrack.hasPendingData();
+    // AMZN_CHANGE_BEGIN
+    boolean ended = super.isEnded();
+    // for dolby passthrough quirk case, we can't call hasPendingData
+    // to detect end of playback. Instead we depend only on the codec to flag EOS.
+    if (!audioTrack.applyDolbyPassthroughQuirk()) {
+      ended = ended && (!audioTrack.hasPendingData());
+    }
+    return ended;
+    // AMZN_CHANGE_END
   }
 
   @Override
@@ -355,6 +387,17 @@ public class MediaCodecAudioTrackRenderer extends MediaCodecTrackRenderer implem
   protected boolean processOutputBuffer(long positionUs, long elapsedRealtimeUs, MediaCodec codec,
       ByteBuffer buffer, MediaCodec.BufferInfo bufferInfo, int bufferIndex, boolean shouldSkip)
       throws ExoPlaybackException {
+    // AMZN_CHANGE_BEGIN
+    if (log.allowDebug()) {
+      log.d("processOutputBuffer: positionUs = " + positionUs +
+              " elapsedRealtimeUs =  " + elapsedRealtimeUs +
+              " bufferInfo.flags = " + bufferInfo.flags +
+              " bufferIndex = " + bufferIndex +
+              " shouldSkip = " + shouldSkip +
+              " presentationTimeUs = " + bufferInfo.presentationTimeUs);
+    }
+    // AMZN_CHANGE_END
+
     if (passthroughEnabled && (bufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
       // Discard output buffers from the passthrough (raw) decoder containing codec specific data.
       codec.releaseOutputBuffer(bufferIndex, false);
