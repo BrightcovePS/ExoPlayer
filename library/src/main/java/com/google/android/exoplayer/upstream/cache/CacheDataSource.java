@@ -23,7 +23,7 @@ import com.google.android.exoplayer.upstream.DataSource;
 import com.google.android.exoplayer.upstream.DataSpec;
 import com.google.android.exoplayer.upstream.FileDataSource;
 import com.google.android.exoplayer.upstream.TeeDataSource;
-import com.google.android.exoplayer.upstream.cache.Cache.CacheException;
+import com.google.android.exoplayer.upstream.cache.CacheDataSink.CacheDataSinkException;
 import java.io.IOException;
 import java.io.InterruptedIOException;
 
@@ -239,7 +239,7 @@ public final class CacheDataSource implements DataSource {
 
   private void handleBeforeThrow(IOException exception) {
     if (ignoreCacheOnError && (currentDataSource == cacheReadDataSource
-        || exception instanceof CacheException)) {
+        || exception instanceof CacheDataSinkException)) {
       // Ignore the cache from now on.
       ignoreCache = true;
     }

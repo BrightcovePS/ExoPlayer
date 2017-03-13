@@ -15,13 +15,21 @@
  */
 package com.google.android.exoplayer.upstream.cache;
 
-import com.google.android.exoplayer.C;
+import com.google.android.exoplayer.util.Util;
 import java.io.File;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Defines a span of data that may or may not be cached (as indicated by {@link #isCached}).
  */
-public class CacheSpan implements Comparable<CacheSpan> {
+public final class CacheSpan implements Comparable<CacheSpan> {
+
+  private static final String SUFFIX = ".v2.exo";
+  private static final Pattern CACHE_FILE_PATTERN_V1 =
+      Pattern.compile("^(.+)\\.(\\d+)\\.(\\d+)\\.v1\\.exo$", Pattern.DOTALL);
+  private static final Pattern CACHE_FILE_PATTERN_V2 =
+      Pattern.compile("^(.+)\\.(\\d+)\\.(\\d+)\\.v2\\.exo$", Pattern.DOTALL);
 
   /**
    * The cache key that uniquely identifies the original stream.
@@ -32,8 +40,7 @@ public class CacheSpan implements Comparable<CacheSpan> {
    */
   public final long position;
   /**
-   * The length of the {@link CacheSpan}, or {@link C#LENGTH_UNBOUNDED} if this is an open-ended
-   * hole.
+   * The length of the {@link CacheSpan}, or -1 if this is an open-ended hole.
    */
   public final long length;
   /**
@@ -45,54 +52,89 @@ public class CacheSpan implements Comparable<CacheSpan> {
    */
   public final File file;
   /**
-   * The last access timestamp, or {@link C#UNKNOWN_TIME_US} if {@link #isCached} is false.
+   * The last access timestamp, or -1 if {@link #isCached} is false.
    */
   public final long lastAccessTimestamp;
 
-  /**
-   * Creates a hole CacheSpan which isn't cached, has no last access time and no file associated.
-   *
-   * @param key The cache key that uniquely identifies the original stream.
-   * @param position The position of the {@link CacheSpan} in the original stream.
-   * @param length The length of the {@link CacheSpan}, or {@link C#LENGTH_UNBOUNDED} if this is an
-   *     open-ended hole.
-   */
-  public CacheSpan(String key, long position, long length) {
-    this(key, position, length, C.UNKNOWN_TIME_US, null);
+  public static File getCacheFileName(File cacheDir, String key, long offset,
+      long lastAccessTimestamp) {
+    return new File(cacheDir,
+        Util.escapeFileName(key) + "." + offset + "." + lastAccessTimestamp + SUFFIX);
+  }
+
+  public static CacheSpan createLookup(String key, long position) {
+    return new CacheSpan(key, position, -1, false, -1, null);
+  }
+
+  public static CacheSpan createOpenHole(String key, long position) {
+    return new CacheSpan(key, position, -1, false, -1, null);
+  }
+
+  public static CacheSpan createClosedHole(String key, long position, long length) {
+    return new CacheSpan(key, position, length, false, -1, null);
   }
 
   /**
-   * Creates a CacheSpan.
+   * Creates a cache span from an underlying cache file.
    *
-   * @param key The cache key that uniquely identifies the original stream.
-   * @param position The position of the {@link CacheSpan} in the original stream.
-   * @param length The length of the {@link CacheSpan}, or {@link C#LENGTH_UNBOUNDED} if this is an
-   *     open-ended hole.
-   * @param lastAccessTimestamp The last access timestamp, or {@link C#UNKNOWN_TIME_US} if
-   *     {@link #isCached} is false.
-   * @param file The file corresponding to this {@link CacheSpan}, or null if it's a hole.
+   * @param file The cache file.
+   * @return The span, or null if the file name is not correctly formatted.
    */
-  public CacheSpan(String key, long position, long length, long lastAccessTimestamp, File file) {
+  public static CacheSpan createCacheEntry(File file) {
+    Matcher matcher = CACHE_FILE_PATTERN_V2.matcher(file.getName());
+    if (!matcher.matches()) {
+      return null;
+    }
+    String key = Util.unescapeFileName(matcher.group(1));
+    return key == null ? null : createCacheEntry(
+        key, Long.parseLong(matcher.group(2)), Long.parseLong(matcher.group(3)), file);
+  }
+
+  static File upgradeIfNeeded(File file) {
+    Matcher matcher = CACHE_FILE_PATTERN_V1.matcher(file.getName());
+    if (!matcher.matches()) {
+      return file;
+    }
+    String key = matcher.group(1); // Keys were not escaped in version 1.
+    File newCacheFile = getCacheFileName(file.getParentFile(), key,
+        Long.parseLong(matcher.group(2)), Long.parseLong(matcher.group(3)));
+    file.renameTo(newCacheFile);
+    return newCacheFile;
+  }
+
+  private static CacheSpan createCacheEntry(String key, long position, long lastAccessTimestamp,
+      File file) {
+    return new CacheSpan(key, position, file.length(), true, lastAccessTimestamp, file);
+  }
+
+  // Visible for testing.
+  CacheSpan(String key, long position, long length, boolean isCached,
+      long lastAccessTimestamp, File file) {
     this.key = key;
     this.position = position;
     this.length = length;
-    this.isCached = file != null;
+    this.isCached = isCached;
     this.file = file;
     this.lastAccessTimestamp = lastAccessTimestamp;
   }
 
   /**
-   * Returns whether this is an open-ended {@link CacheSpan}.
+   * @return True if this is an open-ended {@link CacheSpan}. False otherwise.
    */
-  public final boolean isOpenEnded() {
-    return length == C.LENGTH_UNBOUNDED;
+  public boolean isOpenEnded() {
+    return length == -1;
   }
 
   /**
-   * Returns whether this is a hole {@link CacheSpan}.
+   * Renames the file underlying this cache span to update its last access time.
+   *
+   * @return A {@link CacheSpan} representing the updated cache file.
    */
-  public final boolean isHoleSpan() {
-    return !isCached;
+  public CacheSpan touch() {
+    long now = System.currentTimeMillis();
+    File newCacheFile = getCacheFileName(file.getParentFile(), key, position, now);
+    file.renameTo(newCacheFile);
+    return CacheSpan.createCacheEntry(key, position, now, newCacheFile);
   }
 
   @Override

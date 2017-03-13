@@ -18,14 +18,12 @@ package com.google.android.exoplayer.upstream.cache;
 import com.google.android.exoplayer.C;
 import com.google.android.exoplayer.upstream.DataSink;
 import com.google.android.exoplayer.upstream.DataSpec;
-import com.google.android.exoplayer.upstream.cache.Cache.CacheException;
 import com.google.android.exoplayer.util.Assertions;
-import com.google.android.exoplayer.util.ReusableBufferedOutputStream;
 import com.google.android.exoplayer.util.Util;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 
 /**
  * Writes data into a cache.
@@ -34,26 +32,24 @@ public final class CacheDataSink implements DataSink {
 
   private final Cache cache;
   private final long maxCacheFileSize;
-  private final int bufferSize;
 
   private DataSpec dataSpec;
   private File file;
-  private OutputStream outputStream;
-  private FileOutputStream underlyingFileOutputStream;
+  private FileOutputStream outputStream;
   private long outputStreamBytesWritten;
   private long dataSpecBytesWritten;
-  private ReusableBufferedOutputStream bufferedOutputStream;
 
   /**
    * Thrown when IOException is encountered when writing data into sink.
    */
-  public static class CacheDataSinkException extends CacheException {
+  public static class CacheDataSinkException extends IOException {
 
     public CacheDataSinkException(IOException cause) {
       super(cause);
     }
 
   }
+
 
   /**
    * @param cache The cache into which data should be written.
@@ -62,21 +58,8 @@ public final class CacheDataSink implements DataSink {
    *    multiple cache files.
    */
   public CacheDataSink(Cache cache, long maxCacheFileSize) {
-    this(cache, maxCacheFileSize, 0);
-  }
-
-  /**
-   * @param cache The cache into which data should be written.
-   * @param maxCacheFileSize The maximum size of a cache file, in bytes. If the sink is opened for
-   *    a {@link DataSpec} whose size exceeds this value, then the data will be fragmented into
-   *    multiple cache files.
-   * @param bufferSize The buffer size in bytes for writing to a cache file. A zero or negative
-   *    value disables buffering.
-   */
-  public CacheDataSink(Cache cache, long maxCacheFileSize, int bufferSize) {
     this.cache = Assertions.checkNotNull(cache);
     this.maxCacheFileSize = maxCacheFileSize;
-    this.bufferSize = bufferSize;
   }
 
   @Override
@@ -89,7 +72,7 @@ public final class CacheDataSink implements DataSink {
       dataSpecBytesWritten = 0;
       openNextOutputStream();
       return this;
-    } catch (IOException e) {
+    } catch (FileNotFoundException e) {
       throw new CacheDataSinkException(e);
     }
   }
@@ -124,25 +107,13 @@ public final class CacheDataSink implements DataSink {
     }
   }
 
-  private void openNextOutputStream() throws IOException {
+  private void openNextOutputStream() throws FileNotFoundException {
     file = cache.startFile(dataSpec.key, dataSpec.absoluteStreamPosition + dataSpecBytesWritten,
         Math.min(dataSpec.length - dataSpecBytesWritten, maxCacheFileSize));
-    underlyingFileOutputStream = new FileOutputStream(file);
-    if (bufferSize > 0) {
-      if (bufferedOutputStream == null) {
-        bufferedOutputStream = new ReusableBufferedOutputStream(underlyingFileOutputStream,
-            bufferSize);
-      } else {
-        bufferedOutputStream.reset(underlyingFileOutputStream);
-      }
-      outputStream = bufferedOutputStream;
-    } else {
-      outputStream = underlyingFileOutputStream;
-    }
+    outputStream = new FileOutputStream(file);
     outputStreamBytesWritten = 0;
   }
 
-  @SuppressWarnings("ThrowFromFinallyBlock")
   private void closeCurrentOutputStream() throws IOException {
     if (outputStream == null) {
       return;
@@ -151,18 +122,17 @@ public final class CacheDataSink implements DataSink {
     boolean success = false;
     try {
       outputStream.flush();
-      underlyingFileOutputStream.getFD().sync();
+      outputStream.getFD().sync();
       success = true;
     } finally {
       Util.closeQuietly(outputStream);
-      outputStream = null;
-      File fileToCommit = file;
-      file = null;
       if (success) {
-        cache.commitFile(fileToCommit);
+        cache.commitFile(file);
       } else {
-        fileToCommit.delete();
+        file.delete();
       }
+      outputStream = null;
+      file = null;
     }
   }
 

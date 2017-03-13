@@ -16,10 +16,11 @@
 package com.google.android.exoplayer.dash.mpd;
 
 import android.net.Uri;
+import com.google.android.exoplayer.util.Assertions;
 import com.google.android.exoplayer.util.UriUtil;
 
 /**
- * Defines a range of data located at a reference uri.
+ * Defines a range of data located at a {@link Uri}.
  */
 public final class RangedUri {
 
@@ -33,6 +34,12 @@ public final class RangedUri {
    */
   public final long length;
 
+  // The URI is stored internally in two parts: reference URI and a base URI to use when
+  // resolving it. This helps optimize memory usage in the same way that DASH manifests allow many
+  // URLs to be expressed concisely in the form of a single BaseURL and many relative paths. Note
+  // that this optimization relies on the same object being passed as the base URI to many
+  // instances of this class.
+  private final String baseUri;
   private final String referenceUri;
 
   private int hashCode;
@@ -40,57 +47,57 @@ public final class RangedUri {
   /**
    * Constructs an ranged uri.
    *
-   * @param referenceUri The reference uri.
+   * @param baseUri A uri that can form the base of the uri defined by the instance.
+   * @param referenceUri A reference uri that should be resolved with respect to {@code baseUri}.
    * @param start The (zero based) index of the first byte of the range.
    * @param length The length of the range, or -1 to indicate that the range is unbounded.
    */
-  public RangedUri(String referenceUri, long start, long length) {
-    this.referenceUri = referenceUri == null ? "" : referenceUri;
+  public RangedUri(String baseUri, String referenceUri, long start, long length) {
+    Assertions.checkArgument(baseUri != null || referenceUri != null);
+    this.baseUri = baseUri;
+    this.referenceUri = referenceUri;
     this.start = start;
     this.length = length;
   }
 
   /**
-   * Returns the resolved {@link Uri} represented by the instance.
+   * Returns the {@link Uri} represented by the instance.
    *
-   * @param baseUri The base Uri.
-   * @return The resolved {@link Uri} represented by the instance.
+   * @return The {@link Uri} represented by the instance.
    */
-  public Uri resolveUri(String baseUri) {
+  public Uri getUri() {
     return UriUtil.resolveToUri(baseUri, referenceUri);
   }
 
   /**
-   * Returns the resolve uri represented by the instance as a string.
+   * Returns the uri represented by the instance as a string.
    *
-   * @param baseUri The base uri.
-   * @return The resolved uri represented by the instance.
+   * @return The uri represented by the instance.
    */
-  public String resolveUriString(String baseUri) {
+  public String getUriString() {
     return UriUtil.resolve(baseUri, referenceUri);
   }
 
   /**
-   * Attempts to merge this {@link RangedUri} with another and an optional common base uri.
+   * Attempts to merge this {@link RangedUri} with another.
    * <p>
-   * A merge is successful if both instances define the same {@link Uri} after resolution with the
-   * base Uri, and if one starts the byte after the other ends, forming a contiguous region with
-   * no overlap.
+   * A merge is successful if both instances define the same {@link Uri}, and if one starte the
+   * byte after the other ends, forming a contiguous region with no overlap.
    * <p>
    * If {@code other} is null then the merge is considered unsuccessful, and null is returned.
    *
    * @param other The {@link RangedUri} to merge.
-   * @param baseUri The optional base uri.
    * @return The merged {@link RangedUri} if the merge was successful. Null otherwise.
    */
-  public RangedUri attemptMerge(RangedUri other, String baseUri) {
-    final String resolvedUri = resolveUriString(baseUri);
-    if (other == null || !resolvedUri.equals(other.resolveUriString(baseUri))) {
+  public RangedUri attemptMerge(RangedUri other) {
+    if (other == null || !getUriString().equals(other.getUriString())) {
       return null;
     } else if (length != -1 && start + length == other.start) {
-      return new RangedUri(resolvedUri, start, other.length == -1 ? -1 : length + other.length);
+      return new RangedUri(baseUri, referenceUri, start,
+          other.length == -1 ? -1 : length + other.length);
     } else if (other.length != -1 && other.start + other.length == start) {
-      return new RangedUri(resolvedUri, other.start, length == -1 ? -1 : other.length + length);
+      return new RangedUri(baseUri, referenceUri, other.start,
+          length == -1 ? -1 : other.length + length);
     } else {
       return null;
     }
@@ -102,7 +109,7 @@ public final class RangedUri {
       int result = 17;
       result = 31 * result + (int) start;
       result = 31 * result + (int) length;
-      result = 31 * result + referenceUri.hashCode();
+      result = 31 * result + getUriString().hashCode();
       hashCode = result;
     }
     return hashCode;
@@ -119,6 +126,7 @@ public final class RangedUri {
     RangedUri other = (RangedUri) obj;
     return this.start == other.start
         && this.length == other.length
-        && this.referenceUri.equals(other.referenceUri);
+        && getUriString().equals(other.getUriString());
   }
+
 }

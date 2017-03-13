@@ -58,8 +58,7 @@ import java.util.List;
     Atom.ContainerAtom mdia = trak.getContainerAtomOfType(Atom.TYPE_mdia);
     int trackType = parseHdlr(mdia.getLeafAtomOfType(Atom.TYPE_hdlr).data);
     if (trackType != Track.TYPE_soun && trackType != Track.TYPE_vide && trackType != Track.TYPE_text
-        && trackType != Track.TYPE_sbtl && trackType != Track.TYPE_subt
-        && trackType != Track.TYPE_meta) {
+        && trackType != Track.TYPE_sbtl && trackType != Track.TYPE_subt) {
       return null;
     }
 
@@ -585,8 +584,7 @@ import java.util.List;
           || childAtomType == Atom.TYPE_dtsc || childAtomType == Atom.TYPE_dtse
           || childAtomType == Atom.TYPE_dtsh || childAtomType == Atom.TYPE_dtsl
           || childAtomType == Atom.TYPE_samr || childAtomType == Atom.TYPE_sawb
-          || childAtomType == Atom.TYPE_lpcm || childAtomType == Atom.TYPE_sowt
-          || childAtomType == Atom.TYPE__mp3) {
+          || childAtomType == Atom.TYPE_lpcm || childAtomType == Atom.TYPE_sowt) {
         parseAudioSampleEntry(stsd, childAtomType, childStartPosition, childAtomSize, trackId,
             durationUs, language, isQuickTime, out, i);
       } else if (childAtomType == Atom.TYPE_TTML) {
@@ -602,9 +600,6 @@ import java.util.List;
         out.mediaFormat = MediaFormat.createTextFormat(Integer.toString(trackId),
             MimeTypes.APPLICATION_TTML, MediaFormat.NO_VALUE, durationUs, language,
             0 /* subsample timing is absolute */);
-      } else if (childAtomType == Atom.TYPE_camm) {
-        out.mediaFormat = MediaFormat.createFormatForMimeType(Integer.toString(trackId),
-            MimeTypes.APPLICATION_CAMERA_MOTION, MediaFormat.NO_VALUE, durationUs);
       }
       stsd.setPosition(childStartPosition + childAtomSize);
     }
@@ -881,8 +876,6 @@ import java.util.List;
       mimeType = MimeTypes.AUDIO_AMR_WB;
     } else if (atomType == Atom.TYPE_lpcm || atomType == Atom.TYPE_sowt) {
       mimeType = MimeTypes.AUDIO_RAW;
-    } else if (atomType == Atom.TYPE__mp3) {
-      mimeType = MimeTypes.AUDIO_MPEG;
     }
 
     byte[] initializationData = null;

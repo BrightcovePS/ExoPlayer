@@ -21,64 +21,57 @@ import junit.framework.TestCase;
  * Unit test for {@link RangedUri}.
  */
 public class RangedUriTest extends TestCase {
-  private static final String BASE_URI = "http://www.test.com/";
-  private static final String PARTIAL_URI = "path/file.ext";
-  private static final String FULL_URI = BASE_URI + PARTIAL_URI;
+
+  private static final String FULL_URI = "http://www.test.com/path/file.ext";
 
   public void testMerge() {
-    RangedUri rangeA = new RangedUri(FULL_URI, 0, 10);
-    RangedUri rangeB = new RangedUri(FULL_URI, 10, 10);
-    RangedUri expected = new RangedUri(FULL_URI, 0, 20);
-    assertMerge(rangeA, rangeB, expected, null);
+    RangedUri rangeA = new RangedUri(null, FULL_URI, 0, 10);
+    RangedUri rangeB = new RangedUri(null, FULL_URI, 10, 10);
+    RangedUri expected = new RangedUri(null, FULL_URI, 0, 20);
+    assertMerge(rangeA, rangeB, expected);
   }
 
   public void testMergeUnbounded() {
-    RangedUri rangeA = new RangedUri(FULL_URI, 0, 10);
-    RangedUri rangeB = new RangedUri(FULL_URI, 10, -1);
-    RangedUri expected = new RangedUri(FULL_URI, 0, -1);
-    assertMerge(rangeA, rangeB, expected, null);
+    RangedUri rangeA = new RangedUri(null, FULL_URI, 0, 10);
+    RangedUri rangeB = new RangedUri(null, FULL_URI, 10, -1);
+    RangedUri expected = new RangedUri(null, FULL_URI, 0, -1);
+    assertMerge(rangeA, rangeB, expected);
   }
 
   public void testNonMerge() {
     // A and B do not overlap, so should not merge
-    RangedUri rangeA = new RangedUri(FULL_URI, 0, 10);
-    RangedUri rangeB = new RangedUri(FULL_URI, 11, 10);
-    assertNonMerge(rangeA, rangeB, null);
+    RangedUri rangeA = new RangedUri(null, FULL_URI, 0, 10);
+    RangedUri rangeB = new RangedUri(null, FULL_URI, 11, 10);
+    assertNonMerge(rangeA, rangeB);
 
     // A and B do not overlap, so should not merge
-    rangeA = new RangedUri(FULL_URI, 0, 10);
-    rangeB = new RangedUri(FULL_URI, 11, -1);
-    assertNonMerge(rangeA, rangeB, null);
+    rangeA = new RangedUri(null, FULL_URI, 0, 10);
+    rangeB = new RangedUri(null, FULL_URI, 11, -1);
+    assertNonMerge(rangeA, rangeB);
 
     // A and B are bounded but overlap, so should not merge
-    rangeA = new RangedUri(FULL_URI, 0, 11);
-    rangeB = new RangedUri(FULL_URI, 10, 10);
-    assertNonMerge(rangeA, rangeB, null);
+    rangeA = new RangedUri(null, FULL_URI, 0, 11);
+    rangeB = new RangedUri(null, FULL_URI, 10, 10);
+    assertNonMerge(rangeA, rangeB);
 
     // A and B overlap due to unboundedness, so should not merge
-    rangeA = new RangedUri(FULL_URI, 0, -1);
-    rangeB = new RangedUri(FULL_URI, 10, -1);
-    assertNonMerge(rangeA, rangeB, null);
+    rangeA = new RangedUri(null, FULL_URI, 0, -1);
+    rangeB = new RangedUri(null, FULL_URI, 10, -1);
+    assertNonMerge(rangeA, rangeB);
+
   }
 
-  public void testMergeWithBaseUri() {
-    RangedUri rangeA = new RangedUri(PARTIAL_URI, 0, 10);
-    RangedUri rangeB = new RangedUri(FULL_URI, 10, 10);
-    RangedUri expected = new RangedUri(FULL_URI, 0, 20);
-    assertMerge(rangeA, rangeB, expected, BASE_URI);
-  }
-
-  private void assertMerge(RangedUri rangeA, RangedUri rangeB, RangedUri expected, String baseUrl) {
-    RangedUri merged = rangeA.attemptMerge(rangeB, baseUrl);
+  private void assertMerge(RangedUri rangeA, RangedUri rangeB, RangedUri expected) {
+    RangedUri merged = rangeA.attemptMerge(rangeB);
     assertEquals(expected, merged);
-    merged = rangeB.attemptMerge(rangeA, baseUrl);
+    merged = rangeB.attemptMerge(rangeA);
     assertEquals(expected, merged);
   }
 
-  private void assertNonMerge(RangedUri rangeA, RangedUri rangeB, String baseUrl) {
-    RangedUri merged = rangeA.attemptMerge(rangeB, baseUrl);
+  private void assertNonMerge(RangedUri rangeA, RangedUri rangeB) {
+    RangedUri merged = rangeA.attemptMerge(rangeB);
     assertNull(merged);
-    merged = rangeB.attemptMerge(rangeA, baseUrl);
+    merged = rangeB.attemptMerge(rangeA);
     assertNull(merged);
   }
 

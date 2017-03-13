@@ -16,7 +16,6 @@
 package com.google.android.exoplayer.upstream.cache;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.NavigableSet;
 import java.util.Set;
 
@@ -28,7 +27,7 @@ public interface Cache {
   /**
    * Interface definition for a callback to be notified of {@link Cache} events.
    */
-  interface Listener {
+  public interface Listener {
 
     /**
      * Invoked when a {@link CacheSpan} is added to the cache.
@@ -59,21 +58,6 @@ public interface Cache {
      * @param newSpan The new {@link CacheSpan}, which has been added to the cache.
      */
     void onSpanTouched(Cache cache, CacheSpan oldSpan, CacheSpan newSpan);
-
-  }
-  
-  /**
-   * Thrown when an error is encountered when writing data.
-   */
-  class CacheException extends IOException {
-
-    public CacheException(String message) {
-      super(message);
-    }
-
-    public CacheException(IOException cause) {
-      super(cause);
-    }
 
   }
 
@@ -141,7 +125,7 @@ public interface Cache {
    * @return The {@link CacheSpan}.
    * @throws InterruptedException
    */
-  CacheSpan startReadWrite(String key, long position) throws InterruptedException, CacheException;
+  CacheSpan startReadWrite(String key, long position) throws InterruptedException;
 
   /**
    * Same as {@link #startReadWrite(String, long)}. However, if the cache entry is locked, then
@@ -151,7 +135,7 @@ public interface Cache {
    * @param position The position of the data being requested.
    * @return The {@link CacheSpan}. Or null if the cache entry is locked.
    */
-  CacheSpan startReadWriteNonBlocking(String key, long position) throws CacheException;
+  CacheSpan startReadWriteNonBlocking(String key, long position);
 
   /**
    * Obtains a cache file into which data can be written. Must only be called when holding a
@@ -163,7 +147,7 @@ public interface Cache {
    *     space in the cache.
    * @return The file into which data should be written.
    */
-  File startFile(String key, long position, long length) throws CacheException;
+  File startFile(String key, long position, long length);
 
   /**
    * Commits a file into the cache. Must only be called when holding a corresponding hole
@@ -171,7 +155,7 @@ public interface Cache {
    *
    * @param file A newly written cache file.
    */
-  void commitFile(File file) throws CacheException;
+  void commitFile(File file);
 
   /**
    * Releases a {@link CacheSpan} obtained from {@link #startReadWrite(String, long)} which
@@ -186,7 +170,7 @@ public interface Cache {
    *
    * @param span The {@link CacheSpan} to remove.
    */
-  void removeSpan(CacheSpan span) throws CacheException;
+  void removeSpan(CacheSpan span);
 
  /**
   * Queries if a range is entirely available in the cache.

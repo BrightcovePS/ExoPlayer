@@ -446,7 +446,7 @@ public final class LibvpxVideoTrackRenderer extends SampleSourceTrackRenderer {
   }
 
   private void setSurface(Surface surface) {
-    if (this.surface == surface && outputBufferRenderer == null) {
+    if (this.surface == surface) {
       return;
     }
     this.surface = surface;
@@ -459,7 +459,7 @@ public final class LibvpxVideoTrackRenderer extends SampleSourceTrackRenderer {
   }
 
   private void setOutputBufferRenderer(VpxOutputBufferRenderer outputBufferRenderer) {
-    if (this.outputBufferRenderer == outputBufferRenderer && surface == null) {
+    if (this.outputBufferRenderer == outputBufferRenderer) {
       return;
     }
     this.outputBufferRenderer = outputBufferRenderer;
