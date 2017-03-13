@@ -67,7 +67,6 @@ public final class ReusableBufferedOutputStream extends BufferedOutputStream {
   public void reset(OutputStream out) {
     Assertions.checkState(closed);
     this.out = out;
-    count = 0;
     closed = false;
   }
 }

@@ -21,7 +21,6 @@ import com.google.android.exoplayer.chunk.Format;
 import com.google.android.exoplayer.hls.HlsMediaPlaylist.Segment;
 import com.google.android.exoplayer.upstream.UriLoadable;
 import com.google.android.exoplayer.util.MimeTypes;
-import com.google.android.exoplayer.util.Util;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -135,7 +134,7 @@ public final class HlsPlaylistParser implements UriLoadable.Parser<HlsPlaylist> 
         }
       }
     } finally {
-      Util.closeQuietly(reader);
+      reader.close();
     }
     throw new ParserException("Failed to parse the playlist, could not identify any tags.");
   }

@@ -515,9 +515,11 @@ public final class WebmExtractor implements Extractor {
         }
         return;
       case ID_TRACK_ENTRY:
-        if (isCodecSupported(currentTrack.codecId)) {
+        if (tracks.get(currentTrack.number) == null && isCodecSupported(currentTrack.codecId)) {
           currentTrack.initializeOutput(extractorOutput, currentTrack.number, durationUs);
           tracks.put(currentTrack.number, currentTrack);
+        } else {
+          // We've seen this track entry before, or the codec is unsupported. Do nothing.
         }
         currentTrack = null;
         return;

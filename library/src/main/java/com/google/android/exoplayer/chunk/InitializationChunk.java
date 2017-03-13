@@ -192,7 +192,7 @@ public class InitializationChunk extends Chunk implements SingleTrackOutput {
         bytesLoaded = (int) (input.getPosition() - dataSpec.absoluteStreamPosition);
       }
     } finally {
-      Util.closeQuietly(dataSource);
+      dataSource.close();
     }
   }
 
