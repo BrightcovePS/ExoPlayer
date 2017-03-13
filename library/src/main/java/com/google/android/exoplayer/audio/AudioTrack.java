@@ -257,7 +257,6 @@ public final class AudioTrack {
    */
   public AudioTrack(AudioCapabilities audioCapabilities, int streamType) {
     this.audioCapabilities = audioCapabilities;
-<<<<<<< HEAD
     this.streamType = streamType;
     // AMZN_CHANGE_BEGIN
     isLatencyQuirkEnabled = AmazonQuirks.isLatencyQuirkEnabled();
@@ -266,8 +265,6 @@ public final class AudioTrack {
     log.i("isDolbyPassthroughQuirkEnabled = " + isDolbyPassthroughQuirkEnabled);
     passthrough = false;
     // AMZN_CHANGE_END
-=======
->>>>>>> parent of dffcbde... Revert "Merge pull request #2198 from google/dev-v1"
     releasingConditionVariable = new ConditionVariable(true);
     if (Util.SDK_INT >= 18) {
       try {
